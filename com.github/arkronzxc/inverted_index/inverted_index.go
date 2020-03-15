@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,8 +12,8 @@ import (
 )
 
 const (
-	finalDataFile        = "output\\final.csv"
-	finalOutputDirectory = "output"
+	finalDataFile  = "output\\final.json"
+	finalOutputDir = "output"
 )
 
 // Returns slice of file names from dir
@@ -74,26 +72,20 @@ func CreateInvertedIndex(filepath string) error {
 			m[k] = append(m[k], v)
 		}
 	}
-	return CreateOutputCSV(m)
+	return CreateOutputJSON(m)
 }
 
-//IDK why that func doesn't work in win10
-func CreateOutputCSV(m map[string][]string) error {
-	if err := os.MkdirAll(finalOutputDirectory, 0777); err != nil {
+func CreateOutputJSON(m map[string][]string) error {
+	if err := os.MkdirAll(finalOutputDir, 0777); err != nil {
 		return err
 	}
 	recordFile, _ := os.Create(finalDataFile)
-	w := csv.NewWriter(recordFile)
-	for k, v := range m {
-		t, err := json.Marshal(v)
-		if err != nil {
-			fmt.Printf("error %e while creating json from obj %+v \n", err, &v)
-		}
-		fmt.Printf("key: %s, value: %s \n", k, t)
-		err = w.Write([]string{fmt.Sprintf("%s", k), fmt.Sprintf("%s", t)})
-		if err != nil {
-			fmt.Printf("error %e while saving record %s,%s \n", err, k, t)
-		}
+	data, err := json.Marshal(m)
+	if err != nil {
+		log.Print(err)
+		return err
 	}
-	return nil
+	_, err = recordFile.Write(data)
+
+	return err
 }
