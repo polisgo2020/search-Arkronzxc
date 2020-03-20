@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/aaaton/golem"
+	"github.com/aaaton/golem/dicts/en"
 	"github.com/polisgo2020/search-Arkronzxc/dictionary"
-	//"github.com/chewxy/lingo"
 	"io/ioutil"
 	"log"
 	"os"
@@ -32,6 +33,10 @@ func ReadFileName(root string) ([]string, error) {
 
 // returns map where key is a word in file, value is filename
 func ReadFiles(files string) (map[string]string, error) {
+	lemmatizer, err := golem.New(en.New())
+	if err != nil {
+		return nil, err
+	}
 	m := make(map[string]string)
 
 	content, err := ioutil.ReadFile(files)
@@ -47,7 +52,10 @@ func ReadFiles(files string) (map[string]string, error) {
 	}
 	str := strings.FieldsFunc(string(content), f)
 	for _, v := range str {
-		m[v] = files
+		if !dictionary.EnglishStopWordChecker(v) && len(v) > 0 {
+			v := lemmatizer.Lemma(v)
+			m[v] = files
+		}
 	}
 	return m, nil
 }
