@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/polisgo2020/search-Arkronzxc/dictionary"
+	//"github.com/chewxy/lingo"
 	"io/ioutil"
 	"log"
 	"os"
