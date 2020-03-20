@@ -14,6 +14,5 @@ func main() {
 	err := CreateInvertedIndex(os.Args[1])
 	if err != nil {
 		log.Print(err)
-		return
 	}
 }

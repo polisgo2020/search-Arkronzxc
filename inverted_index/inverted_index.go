@@ -5,16 +5,16 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
 
-const (
-	finalDataFile  = "output\\final.json"
-	finalOutputDir = "output"
-)
+var finalDataFile = path.Join(finalOutputDir, "output.json")
+
+const finalOutputDir = "output"
 
 // Returns slice of file names from dir
 func ReadFileName(root string) ([]string, error) {
@@ -65,8 +65,7 @@ func CreateInvertedIndex(filepath string) error {
 			continue
 		}
 		for k, v := range wordMap {
-			_, ok := m[k]
-			if !ok {
+			if _, ok := m[k]; !ok {
 				m[k] = make([]string, 0)
 			}
 			m[k] = append(m[k], v)
