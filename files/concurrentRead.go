@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/polisgo2020/search-Arkronzxc/util"
 	"io"
 	"math"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/polisgo2020/search-Arkronzxc/util"
 )
 
 //ConcurrentReadFile concurrently read file and returns word array from file

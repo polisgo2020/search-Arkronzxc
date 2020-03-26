@@ -1,9 +1,10 @@
 package util
 
 import (
-	"github.com/kljensen/snowball"
 	"log"
 	"os"
+
+	"github.com/kljensen/snowball"
 )
 
 //CleanUserData receives a processing word and after processing applies function operation for processed word

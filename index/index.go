@@ -1,10 +1,11 @@
 package index
 
 import (
-	"github.com/polisgo2020/search-Arkronzxc/files"
-	"github.com/polisgo2020/search-Arkronzxc/util"
 	"log"
 	"sync"
+
+	"github.com/polisgo2020/search-Arkronzxc/files"
+	"github.com/polisgo2020/search-Arkronzxc/util"
 )
 
 type Index map[string][]string

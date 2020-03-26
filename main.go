@@ -2,14 +2,15 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/polisgo2020/search-Arkronzxc/index"
-	"github.com/polisgo2020/search-Arkronzxc/util"
-	"github.com/urfave/cli/v2"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/polisgo2020/search-Arkronzxc/index"
+	"github.com/polisgo2020/search-Arkronzxc/util"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
