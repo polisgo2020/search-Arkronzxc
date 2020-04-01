@@ -27,13 +27,8 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 		wg.Wait()
 		close(readChan)
 	}(&wg, fileChan)
-ReadLoop:
-	for {
-		//reads file data if channel is not closed and it has unread data
-		data, ok := <-fileChan
-		if !ok {
-			break ReadLoop
-		}
+
+	for data := range fileChan {
 		for j := range data {
 			if m[j] == nil {
 				m[j] = []string{data[j]}
@@ -42,7 +37,6 @@ ReadLoop:
 			}
 		}
 	}
-
 	return &m, nil
 }
 
