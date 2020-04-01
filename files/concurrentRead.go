@@ -28,7 +28,7 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 
 	//chunkSize is 1 mb
 	const chunkSize = 1024 * 1024
-	goRoutineCount := int(math.Ceil(float64(util.FileSize(filename) / chunkSize)))
+	goRoutineCount := int(math.Ceil(float64(util.FileSize(filename)/chunkSize))) + 1
 
 	wordChannel := make(chan string, goRoutineCount)
 
@@ -114,20 +114,19 @@ func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, fi
 
 	//iterates over a space separated byte buffer. Another case is it terminates if context is done.
 	//It becomes done if some error occurred in any reading goroutine.
-ReadLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			break ReadLoop
+			return
 		default:
 			if cumulativeSize > limit {
-				break ReadLoop
+				return
 			}
 
 			b, err := reader.ReadBytes(' ')
 
 			if err == io.EOF {
-				break ReadLoop
+				return
 			}
 
 			if err != nil {
@@ -145,9 +144,15 @@ ReadLoop:
 				str := strings.FieldsFunc(s, f)
 
 				for i := range str {
-					util.CleanUserData(str[i], func(word string) {
-						wordChannel <- word
-					})
+					w, err := util.CleanUserData(str[i])
+					if err != nil {
+						errChan <- err
+						return
+
+					}
+					if w != "" {
+						wordChannel <- w
+					}
 				}
 			}
 		}

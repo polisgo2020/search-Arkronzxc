@@ -93,9 +93,14 @@ func search(ctx *cli.Context) error {
 	parsedUserInput := strings.Split(rawUserInput, ",")
 	cleanedUserInput := make([]string, 0)
 	for i := range parsedUserInput {
-		util.CleanUserData(parsedUserInput[i], func(word string) {
-			cleanedUserInput = append(cleanedUserInput, word)
-		})
+		w, err := util.CleanUserData(parsedUserInput[i])
+		if err != nil {
+			log.Print(err)
+			return nil
+		}
+		if w != "" {
+			parsedUserInput = append(parsedUserInput, w)
+		}
 	}
 	ans, err := index.BuildSearchIndex(cleanedUserInput, file)
 	if err != nil {
@@ -108,7 +113,7 @@ func search(ctx *cli.Context) error {
 	return nil
 }
 
-// Returns slice of file names from dir
+//Returns slice of file names from dir
 func readFileNames(root string) ([]string, error) {
 	var files []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

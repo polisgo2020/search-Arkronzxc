@@ -1,22 +1,32 @@
 package util
 
 import (
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/kljensen/snowball"
 )
 
+type StopWordError struct {
+	What string
+}
+
+func (e StopWordError) Error() string {
+	return fmt.Sprintf("%s", e.What)
+}
+
 //CleanUserData receives a processing word and after processing applies function operation for processed word
-func CleanUserData(word string, operation func(word string)) {
+func CleanUserData(word string) (string, error) {
 	if !EnglishStopWordChecker(word) && len(word) > 0 {
 		stemmedWord, err := snowball.Stem(word, "english", false)
 		if err != nil {
 			log.Print(err)
-			return
+			return "", err
 		}
-		operation(stemmedWord)
+		return stemmedWord, nil
 	}
+	return "", nil
 }
 
 func FileSize(path string) int64 {

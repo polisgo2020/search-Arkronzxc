@@ -4,15 +4,16 @@ import (
 	"log"
 	"sync"
 
-	"github.com/polisgo2020/search-Arkronzxc/files"
 	"github.com/polisgo2020/search-Arkronzxc/util"
+
+	"github.com/polisgo2020/search-Arkronzxc/files"
 )
 
 type Index map[string][]string
 
 // returns map where key is a word in file, value is filename
 func CreateInvertedIndex(files []string) (*Index, error) {
-	m := new(Index)
+	m := make(Index)
 
 	wg := sync.WaitGroup{}
 	fileChan := make(chan map[string]string, 1000)
@@ -28,23 +29,21 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 	}(&wg, fileChan)
 ReadLoop:
 	for {
-		select {
 		//reads file data if channel is not closed and it has unread data
-		case data, ok := <-fileChan:
-			if !ok {
-				break ReadLoop
-			}
-			for j := range data {
-				if (*m)[j] == nil {
-					(*m)[j] = []string{data[j]}
-				} else {
-					(*m)[j] = append((*m)[j], data[j])
-				}
+		data, ok := <-fileChan
+		if !ok {
+			break ReadLoop
+		}
+		for j := range data {
+			if m[j] == nil {
+				m[j] = []string{data[j]}
+			} else {
+				m[j] = append(m[j], data[j])
 			}
 		}
 	}
 
-	return m, nil
+	return &m, nil
 }
 
 //ConcurrentBuildFileMap concurrently writes words into the word array and iterates over it applying filename as value
@@ -66,11 +65,15 @@ func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapCah chan<- m
 func BuildSearchIndex(searchArgs []string, m *Index) (map[string]int, error) {
 	ans := make(map[string]int)
 
-	cleanData := make([]string, 0)
+	var cleanData []string
 	for i := range searchArgs {
-		util.CleanUserData(searchArgs[i], func(word string) {
-			cleanData = append(cleanData, word)
-		})
+		w, err := util.CleanUserData(searchArgs[i])
+		if err != nil {
+			return nil, err
+		}
+		if w != "" {
+			cleanData = append(cleanData, w)
+		}
 	}
 
 	for _, v := range cleanData {
