@@ -15,7 +15,7 @@ import (
 	"github.com/polisgo2020/search-Arkronzxc/util"
 )
 
-//ConcurrentReadFile concurrently read file and returns word array from file
+// ConcurrentReadFile concurrently read file and returns word array from file
 func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 	wg := sync.WaitGroup{}
 
@@ -42,7 +42,7 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 	// Limit signifies the chunk size of file to be processed by every thread.
 	var limit int64 = chunkSize
 
-	//adds goroutine to the wait group
+	// adds goroutine to the wait group
 	for i := 0; i < goRoutineCount; i++ {
 		wg.Add(1)
 		//start read goroutine which reads and handles curtain part of file
@@ -52,7 +52,7 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 		current += limit + 1
 	}
 
-	//start goroutine which waits end of all the goroutines
+	// starts goroutine which waits end of all the goroutines
 	go func(chW chan string, errChan chan error, wg *sync.WaitGroup) {
 		wg.Wait()
 		close(chW)
@@ -61,12 +61,12 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 
 	wordArr = make([]string, 0)
 
-	//receiving values from either word channel or error channel until one of them won't close
+	// receiving values from either word channel or error channel until one of them won't close
 ReadLoop:
 	for {
 		select {
 		case data, ok := <-wordChannel:
-			//means the channel is already empty and closed
+			// means the channel is already empty and closed
 			if !ok {
 				break ReadLoop
 			}
@@ -76,7 +76,7 @@ ReadLoop:
 			if !ok {
 				break ReadLoop
 			}
-			//if some data came to err channel we send terminating signal to all other goroutines which got that context
+			// if some data came to err channel we send terminating signal to all other goroutines which got that context
 			finish()
 			return nil, errData
 		}
@@ -84,18 +84,18 @@ ReadLoop:
 	return wordArr, nil
 }
 
-//read writes in the word channel the words
+// read writes in the word channel the words
 func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, file *os.File,
 	wordChannel chan<- string, errChan chan<- error) {
 
 	defer wg.Done()
 
-	//shifts the pointer to the offset value.
+	// shifts the pointer to the offset value.
 	_, _ = file.Seek(offset, 0)
 	reader := bufio.NewReader(file)
 
-	//skips all the bytes before first space because they refer to the previous chunk if it's not the first chunk.
-	//If it is then starting to read from the start.
+	// skips all the bytes before first space because they refer to the previous chunk if it's not the first chunk.
+	// If it is then starting to read from the start.
 	if offset != 0 {
 		_, err := reader.ReadBytes(' ')
 		if err == io.EOF {
@@ -109,11 +109,11 @@ func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, fi
 		}
 	}
 
-	//Size of read bytes
+	// size of read bytes
 	var cumulativeSize int64
 
-	//iterates over a space separated byte buffer. Another case is it terminates if context is done.
-	//It becomes done if some error occurred in any reading goroutine.
+	// iterates over a space separated byte buffer. Another case is it terminates if context is done.
+	// It becomes done if some error occurred in any reading goroutine.
 	for {
 		select {
 		case <-ctx.Done():
