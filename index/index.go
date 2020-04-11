@@ -1,7 +1,12 @@
 package index
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/polisgo2020/search-Arkronzxc/util"
@@ -10,6 +15,11 @@ import (
 )
 
 type Index map[string][]string
+
+type searchResponse struct {
+	Filename    string `json:"filename"`
+	WordCounter int    `json:"wordCounter"`
+}
 
 // CreateInvertedIndex returns map where key is a word in file, value is filename
 func CreateInvertedIndex(files []string) (*Index, error) {
@@ -56,9 +66,9 @@ func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- 
 	mapChan <- m
 }
 
-// BuildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
+// buildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
 // number of words from the search query that were found in this file
-func BuildSearchIndex(searchArgs []string, m *Index) (map[string]int, error) {
+func (m *Index) buildSearchIndex(searchArgs []string) (map[string]int, error) {
 	ans := make(map[string]int)
 
 	var cleanData []string
@@ -80,4 +90,74 @@ func BuildSearchIndex(searchArgs []string, m *Index) (map[string]int, error) {
 		}
 	}
 	return ans, nil
+}
+
+func SearchHandler(query string) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		log.Print("Middleware process")
+
+		parsedJson, err := unmarshalFile(query)
+		if err != nil {
+			log.Print(err)
+		}
+
+		log.Println("request")
+		searchPhrase := request.FormValue("search")
+
+		rawUserInput := strings.ToLower(searchPhrase)
+		parsedUserInput := strings.Split(rawUserInput, " ")
+		cleanedUserInput := make([]string, 0)
+		for i := range parsedUserInput {
+			w, err := util.CleanUserData(parsedUserInput[i])
+			if err != nil {
+				log.Print(err)
+				http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			}
+			if w != "" {
+				cleanedUserInput = append(cleanedUserInput, w)
+			}
+		}
+		log.Println("cleanUserInput: ", cleanedUserInput)
+
+		ans, err := parsedJson.buildSearchIndex(cleanedUserInput)
+		if err != nil {
+			log.Print(err)
+			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+		var resp []*searchResponse
+		for s := range ans {
+			resp = append(resp, &searchResponse{
+				Filename:    s,
+				WordCounter: ans[s],
+			})
+			log.Printf("filename: %s, frequency : %d", s, ans[s])
+		}
+		finalJson, err := json.Marshal(resp)
+		if err != nil {
+			log.Print(err)
+			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+
+		writer.Header().Set("Content-Type", "application/json")
+
+		if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
+			log.Print("error", err)
+			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+	}
+}
+
+func unmarshalFile(filename string) (*Index, error) {
+	var m *Index
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Print(err)
+		return nil, err
+	}
+
+	if json.Unmarshal(content, &m) != nil {
+		log.Print(err)
+		return nil, err
+	}
+	return m, nil
 }

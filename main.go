@@ -2,19 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/go-chi/chi/middleware"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/polisgo2020/search-Arkronzxc/index"
-	"github.com/polisgo2020/search-Arkronzxc/util"
+
+	//"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -45,7 +42,7 @@ func main() {
 		Aliases:     []string{"p"},
 		Name:        "port",
 		Usage:       "Network interface",
-		DefaultText: "80",
+		DefaultText: "8080",
 	}
 
 	app.Commands = []*cli.Command{
@@ -96,73 +93,18 @@ func build(ctx *cli.Context) error {
 	return nil
 }
 
-type searchResponse struct {
-	Filename    string `json:"filename"`
-	WordCounter int    `json:"wordCounter"`
-}
-
 func search(ctx *cli.Context) error {
 
 	log.Println("starting")
-	r := chi.NewRouter()
 
-	file, err := unmarshalFile(ctx.String("index"))
-	if err != nil {
-		log.Print(err)
-		return err
-	}
+	r := chi.NewRouter()
 
 	r.Use(middleware.DefaultLogger)
 
-	r.Get("/", func(writer http.ResponseWriter, request *http.Request) {
-		log.Println("request")
-		searchPhrase := request.FormValue("search")
+	r.Get("/", index.SearchHandler(ctx.String("index")))
 
-		rawUserInput := strings.ToLower(searchPhrase)
-		parsedUserInput := strings.Split(rawUserInput, " ")
-		cleanedUserInput := make([]string, 0)
-		for i := range parsedUserInput {
-			w, err := util.CleanUserData(parsedUserInput[i])
-			if err != nil {
-				log.Print(err)
-				http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-				return
-			}
-			if w != "" {
-				cleanedUserInput = append(cleanedUserInput, w)
-			}
-		}
-		log.Println("cleanUserInput: ", cleanedUserInput)
-		ans, err := index.BuildSearchIndex(cleanedUserInput, file)
-		if err != nil {
-			log.Print(err)
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-		var resp []*searchResponse
-		for s := range ans {
-			resp = append(resp, &searchResponse{
-				Filename:    s,
-				WordCounter: ans[s],
-			})
-			log.Printf("filename: %s, frequency : %d", s, ans[s])
-		}
-		finalJson, err := json.Marshal(resp)
-		if err != nil {
-			log.Print(err)
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
-
-		writer.Header().Set("Content-Type", "application/json")
-
-		if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
-
-		}
-
-	})
-
-	if err = http.ListenAndServe(":"+ctx.String("port"), r); err != nil {
-		log.Println("error", err)
+	if err := http.ListenAndServe(":"+ctx.String("port"), r); err != nil {
+		log.Print("error", err)
 	}
 
 	return nil
@@ -194,19 +136,4 @@ func createOutputJSON(m *index.Index, outputFileName string) error {
 	_, err = recordFile.Write(data)
 
 	return err
-}
-
-func unmarshalFile(filename string) (*index.Index, error) {
-	var m *index.Index
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-
-	if json.Unmarshal(content, &m) != nil {
-		log.Print(err)
-		return nil, err
-	}
-	return m, nil
 }

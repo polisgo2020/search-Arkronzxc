@@ -14,9 +14,11 @@ import (
 
 type searchTestSuite struct {
 	suite.Suite
-	index       Index
-	searchQuery []string
-	expected    map[string]int
+	index              Index
+	firstSearchQuery   []string
+	secondSearchQuery  []string
+	firstExpectedCase  map[string]int
+	secondExpectedCase map[string]int
 }
 
 func TestSearchTestSuite(t *testing.T) {
@@ -25,30 +27,41 @@ func TestSearchTestSuite(t *testing.T) {
 
 func (f *searchTestSuite) SetupTest() {
 	f.index = make(Index)
-	f.expected = make(map[string]int)
+	f.firstExpectedCase = make(map[string]int)
+	f.secondExpectedCase = make(map[string]int)
 	f.index["hello"] = []string{"file1", "file2"}
 	f.index["world"] = []string{"file1", "file4"}
 	f.index["golang"] = []string{"file2", "file3", "file4"}
 	f.index["java"] = []string{"file1"}
 	f.index["architectur"] = []string{"file1"}
-	f.searchQuery = []string{"hello", "world"}
-	f.expected["file1"] = 2
-	f.expected["file2"] = 1
-	f.expected["file4"] = 1
+	f.firstSearchQuery = []string{"hello", "world"}
+	f.secondSearchQuery = []string{"golang", "java"}
+	f.firstExpectedCase = map[string]int{
+		"file1": 2,
+		"file2": 1,
+		"file4": 1,
+	}
+	f.secondExpectedCase = map[string]int{
+		"file1": 1,
+		"file2": 1,
+		"file3": 1,
+		"file4": 1,
+	}
 }
 
 func (f *searchTestSuite) TestBuildSearchIndex() {
-	actual, err := BuildSearchIndex(f.searchQuery, &f.index)
+	actual, err := f.index.buildSearchIndex(f.firstSearchQuery)
 	require.NoError(f.T(), err)
-	require.Equal(f.T(), f.expected, actual)
+	require.Equal(f.T(), f.firstExpectedCase, actual)
 }
 
 func (f *searchTestSuite) TestBuildSearchIndex2() {
-	f.searchQuery = append(f.searchQuery, "architecture")
-	actual, err := BuildSearchIndex(f.searchQuery, &f.index)
+	//TODO Может быть не просто отслеживать текущее состояние ожидаемых/входных данных.
+	f.secondSearchQuery = append(f.secondSearchQuery, "architecture")
+	actual, err := f.index.buildSearchIndex(f.secondSearchQuery)
 	require.NoError(f.T(), err)
-	f.expected["file1"] = 3
-	require.Equal(f.T(), f.expected, actual)
+	f.secondExpectedCase["file1"] = 2
+	require.Equal(f.T(), f.secondExpectedCase, actual)
 }
 
 type indexTestSuite struct {
