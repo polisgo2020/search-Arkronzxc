@@ -12,11 +12,14 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/polisgo2020/search-Arkronzxc/util"
 )
 
 // ConcurrentReadFile concurrently read file and returns word array from file
 func ConcurrentReadFile(filename string) (wordArr []string, err error) {
+	log.Debug().Str("Filename", filename)
 	wg := sync.WaitGroup{}
 
 	file, err := os.Open(filename)
@@ -29,10 +32,12 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 	//chunkSize is 1 mb
 	const chunkSize = 1024 * 1024
 	goRoutineCount := int(math.Ceil(float64(util.FileSize(filename)/chunkSize))) + 1
+	log.Debug().Int("GoRoutine count", goRoutineCount)
 
 	wordChannel := make(chan string, goRoutineCount)
 
 	ctx, finish := context.WithCancel(context.Background())
+	log.Debug().Interface("Context", ctx)
 
 	errChannel := make(chan error, goRoutineCount)
 
@@ -41,6 +46,7 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 
 	// Limit signifies the chunk size of file to be processed by every thread.
 	var limit int64 = chunkSize
+	log.Debug().Int64("limit", limit)
 
 	// adds goroutine to the wait group
 	for i := 0; i < goRoutineCount; i++ {
@@ -81,12 +87,15 @@ ReadLoop:
 			return nil, errData
 		}
 	}
+	log.Debug().Strs("Word array", wordArr)
 	return wordArr, nil
 }
 
 // read writes in the word channel the words
 func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, file *os.File,
 	wordChannel chan<- string, errChan chan<- error) {
+	log.Debug().Interface("Context", ctx).Interface("Wg", wg).Int64("Offset", offset).
+		Int64("Limit", limit).Interface("File", file)
 
 	defer wg.Done()
 
@@ -104,10 +113,12 @@ func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, fi
 		}
 
 		if err != nil {
+			log.Err(err)
 			errChan <- err
 			return
 		}
 	}
+	log.Debug().Int64("Offset", offset)
 
 	// size of read bytes
 	var cumulativeSize int64

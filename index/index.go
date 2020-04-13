@@ -1,28 +1,19 @@
 package index
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/polisgo2020/search-Arkronzxc/util"
+	"github.com/rs/zerolog/log"
 
 	"github.com/polisgo2020/search-Arkronzxc/files"
 )
 
 type Index map[string][]string
 
-type searchResponse struct {
-	Filename    string `json:"filename"`
-	WordCounter int    `json:"wordCounter"`
-}
-
 // CreateInvertedIndex returns map where key is a word in file, value is filename
 func CreateInvertedIndex(files []string) (*Index, error) {
+	log.Debug().Strs("Files", files)
 	m := make(Index)
 
 	wg := sync.WaitGroup{}
@@ -47,28 +38,34 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 			}
 		}
 	}
+	log.Debug().Interface("Inverted index", m).Msg("Inverted index created")
 	return &m, nil
 }
 
 // ConcurrentBuildFileMap concurrently writes words into the word array and iterates over it applying filename as value
 func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- map[string]string) {
+	log.Debug().Interface("Wg", wg).Str("Filename", filename)
 	defer wg.Done()
 
 	m := make(map[string]string)
 	wordArr, err := files.ConcurrentReadFile(filename)
 	if err != nil {
-		log.Print(err)
+		log.Err(err).Msg("Error while reading file concurrently")
 		return
 	}
+	log.Debug().Strs("Word array", wordArr)
 	for i := range wordArr {
 		m[wordArr[i]] = filename
 	}
+	log.Debug().Interface("Map", m)
 	mapChan <- m
 }
 
 // buildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
 // number of words from the search query that were found in this file
-func (m *Index) buildSearchIndex(searchArgs []string) (map[string]int, error) {
+func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
+	log.Debug().Interface("Index", m).Strs("Search args", searchArgs)
+
 	ans := make(map[string]int)
 
 	var cleanData []string
@@ -81,6 +78,7 @@ func (m *Index) buildSearchIndex(searchArgs []string) (map[string]int, error) {
 			cleanData = append(cleanData, w)
 		}
 	}
+	log.Debug().Strs("Clean data", cleanData)
 
 	for _, v := range cleanData {
 		if filesArray, ok := (*m)[v]; ok {
@@ -89,75 +87,7 @@ func (m *Index) buildSearchIndex(searchArgs []string) (map[string]int, error) {
 			}
 		}
 	}
+
+	log.Debug().Interface("Ans", ans).Msg("Search index successfully filled")
 	return ans, nil
-}
-
-func SearchHandler(query string) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		log.Print("Middleware process")
-
-		parsedJson, err := unmarshalFile(query)
-		if err != nil {
-			log.Print(err)
-		}
-
-		log.Println("request")
-		searchPhrase := request.FormValue("search")
-
-		rawUserInput := strings.ToLower(searchPhrase)
-		parsedUserInput := strings.Split(rawUserInput, " ")
-		cleanedUserInput := make([]string, 0)
-		for i := range parsedUserInput {
-			w, err := util.CleanUserData(parsedUserInput[i])
-			if err != nil {
-				log.Print(err)
-				http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			}
-			if w != "" {
-				cleanedUserInput = append(cleanedUserInput, w)
-			}
-		}
-		log.Println("cleanUserInput: ", cleanedUserInput)
-
-		ans, err := parsedJson.buildSearchIndex(cleanedUserInput)
-		if err != nil {
-			log.Print(err)
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
-		var resp []*searchResponse
-		for s := range ans {
-			resp = append(resp, &searchResponse{
-				Filename:    s,
-				WordCounter: ans[s],
-			})
-			log.Printf("filename: %s, frequency : %d", s, ans[s])
-		}
-		finalJson, err := json.Marshal(resp)
-		if err != nil {
-			log.Print(err)
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
-
-		writer.Header().Set("Content-Type", "application/json")
-
-		if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
-			log.Print("error", err)
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
-	}
-}
-
-func unmarshalFile(filename string) (*Index, error) {
-	var m *Index
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-
-	if json.Unmarshal(content, &m) != nil {
-		log.Print(err)
-		return nil, err
-	}
-	return m, nil
 }
