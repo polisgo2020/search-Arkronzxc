@@ -23,7 +23,7 @@ type searchResponse struct {
 func SearchHandler(input string) http.HandlerFunc {
 	log.Debug().Str("Input", input)
 
-	searchIndex, err := util.UnmarshalFile(input)
+	searchIndex, err := index.UnmarshalFile(input)
 	if err != nil {
 		panic(err)
 	}

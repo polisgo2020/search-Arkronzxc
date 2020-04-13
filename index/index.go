@@ -1,6 +1,8 @@
 package index
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"sync"
 
 	"github.com/polisgo2020/search-Arkronzxc/util"
@@ -90,4 +92,24 @@ func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 
 	log.Debug().Interface("Ans", ans).Msg("Search index successfully filled")
 	return ans, nil
+}
+
+func UnmarshalFile(filename string) (*Index, error) {
+	log.Debug().Str("Filename", filename)
+
+	var m *Index
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Err(err).Msg("Error while extracting content from file")
+		return nil, err
+	}
+	log.Debug().Str("Content", string(content)).Msg("Content successfully extracted")
+
+	if json.Unmarshal(content, &m) != nil {
+		log.Err(err).Msg("Error while serializing file from JSON")
+		return nil, err
+	}
+	log.Debug().Str("Content", string(content)).Interface("m", m).
+		Msg("JSON successfully serialized into index")
+	return m, nil
 }
