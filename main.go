@@ -95,7 +95,7 @@ func build(ctx *cli.Context) error {
 
 func search(ctx *cli.Context) error {
 
-	log.Println("starting")
+	log.Println("search starting")
 
 	r := chi.NewRouter()
 

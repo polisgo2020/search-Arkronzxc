@@ -92,59 +92,85 @@ func (m *Index) buildSearchIndex(searchArgs []string) (map[string]int, error) {
 	return ans, nil
 }
 
-func SearchHandler(query string) http.HandlerFunc {
+func SearchHandler(input string) http.HandlerFunc {
+
+	searchIndex, err := unmarshalFile(input)
+	if err != nil {
+		panic(err)
+	}
+
 	return func(writer http.ResponseWriter, request *http.Request) {
-		log.Print("Middleware process")
 
-		parsedJson, err := unmarshalFile(query)
+		writer.Header().Set("Content-Type", "application/json")
+
+		parsedSearchPhrase, err, errCode := parseSearchPhrase(request)
 		if err != nil {
 			log.Print(err)
+			http.Error(writer, http.StatusText(errCode), errCode)
+			return
 		}
 
-		log.Println("request")
-		searchPhrase := request.FormValue("search")
-
-		rawUserInput := strings.ToLower(searchPhrase)
-		parsedUserInput := strings.Split(rawUserInput, " ")
-		cleanedUserInput := make([]string, 0)
-		for i := range parsedUserInput {
-			w, err := util.CleanUserData(parsedUserInput[i])
-			if err != nil {
-				log.Print(err)
-				http.Error(writer, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			}
-			if w != "" {
-				cleanedUserInput = append(cleanedUserInput, w)
-			}
-		}
-		log.Println("cleanUserInput: ", cleanedUserInput)
-
-		ans, err := parsedJson.buildSearchIndex(cleanedUserInput)
+		resp, err, errCode := answerFormation(searchIndex, parsedSearchPhrase)
 		if err != nil {
 			log.Print(err)
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			http.Error(writer, http.StatusText(errCode), errCode)
+			return
 		}
-		var resp []*searchResponse
-		for s := range ans {
-			resp = append(resp, &searchResponse{
-				Filename:    s,
-				WordCounter: ans[s],
-			})
-			log.Printf("filename: %s, frequency : %d", s, ans[s])
-		}
+
 		finalJson, err := json.Marshal(resp)
 		if err != nil {
 			log.Print(err)
 			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
 		}
-
-		writer.Header().Set("Content-Type", "application/json")
 
 		if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
-			log.Print("error", err)
+			log.Print(err)
 			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
 		}
 	}
+}
+
+func parseSearchPhrase(request *http.Request) ([]string, error, int) {
+
+	searchPhrase := request.FormValue("search")
+
+	rawUserInput := strings.ToLower(searchPhrase)
+
+	parsedUserInput := strings.Split(rawUserInput, " ")
+
+	cleanedUserInput := make([]string, 0)
+	for i := range parsedUserInput {
+		w, err := util.CleanUserData(parsedUserInput[i])
+		if err != nil {
+			log.Print(err)
+			return nil, err, http.StatusBadRequest
+		}
+		if w != "" {
+			cleanedUserInput = append(cleanedUserInput, w)
+		}
+	}
+	return cleanedUserInput, nil, -1
+}
+
+func answerFormation(index *Index, cleanedUserInput []string) ([]*searchResponse, error, int) {
+
+	ans, err := index.buildSearchIndex(cleanedUserInput)
+	if err != nil {
+		log.Print(err)
+		return nil, err, http.StatusInternalServerError
+	}
+
+	var resp []*searchResponse
+	for s := range ans {
+		resp = append(resp, &searchResponse{
+			Filename:    s,
+			WordCounter: ans[s],
+		})
+		log.Printf("filename: %s, words encountered : %d", s, ans[s])
+	}
+	return resp, nil, -1
 }
 
 func unmarshalFile(filename string) (*Index, error) {

@@ -56,7 +56,6 @@ func (f *searchTestSuite) TestBuildSearchIndex() {
 }
 
 func (f *searchTestSuite) TestBuildSearchIndex2() {
-	//TODO Может быть не просто отслеживать текущее состояние ожидаемых/входных данных.
 	f.secondSearchQuery = append(f.secondSearchQuery, "architecture")
 	actual, err := f.index.buildSearchIndex(f.secondSearchQuery)
 	require.NoError(f.T(), err)
