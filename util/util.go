@@ -25,6 +25,5 @@ func FileSize(path string) int64 {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return fi.Size()
 }

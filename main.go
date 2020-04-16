@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/polisgo2020/search-Arkronzxc/web"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/polisgo2020/search-Arkronzxc/index"
@@ -101,12 +103,11 @@ func search(ctx *cli.Context) error {
 
 	r.Use(middleware.DefaultLogger)
 
-	r.Get("/", index.SearchHandler(ctx.String("index")))
+	r.Get("/", web.SearchHandler(ctx.String("index")))
 
 	if err := http.ListenAndServe(":"+ctx.String("port"), r); err != nil {
 		log.Print("error", err)
 	}
-
 	return nil
 }
 
