@@ -1,8 +1,6 @@
 package index
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"sync"
 
 	"github.com/polisgo2020/search-Arkronzxc/util"
@@ -15,7 +13,7 @@ type Index map[string][]string
 
 // CreateInvertedIndex returns map where key is a word in file, value is filename
 func CreateInvertedIndex(files []string) (*Index, error) {
-	log.Debug().Strs("Files", files)
+	log.Debug().Strs("files", files)
 	m := make(Index)
 
 	wg := sync.WaitGroup{}
@@ -40,33 +38,33 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 			}
 		}
 	}
-	log.Debug().Interface("Inverted index", m).Msg("Inverted index created")
+	log.Debug().Interface("inverted index", m).Msg("inverted index created")
 	return &m, nil
 }
 
 // ConcurrentBuildFileMap concurrently writes words into the word array and iterates over it applying filename as value
 func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- map[string]string) {
-	log.Debug().Interface("Wg", wg).Str("Filename", filename)
+	log.Debug().Interface("wg", wg).Str("filename", filename)
 	defer wg.Done()
 
 	m := make(map[string]string)
 	wordArr, err := files.ConcurrentReadFile(filename)
 	if err != nil {
-		log.Err(err).Msg("Error while reading file concurrently")
+		log.Err(err).Msg("error while reading file concurrently")
 		return
 	}
-	log.Debug().Strs("Word array", wordArr)
+	log.Debug().Strs("word array", wordArr)
 	for i := range wordArr {
 		m[wordArr[i]] = filename
 	}
-	log.Debug().Interface("Map", m)
+	log.Debug().Interface("map", m)
 	mapChan <- m
 }
 
 // buildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
 // number of words from the search query that were found in this file
 func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
-	log.Debug().Interface("Index", m).Strs("Search args", searchArgs)
+	log.Debug().Interface("index", m).Strs("search args", searchArgs)
 
 	ans := make(map[string]int)
 
@@ -80,7 +78,7 @@ func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 			cleanData = append(cleanData, w)
 		}
 	}
-	log.Debug().Strs("Clean data", cleanData)
+	log.Debug().Strs("clean data", cleanData)
 
 	for _, v := range cleanData {
 		if filesArray, ok := (*m)[v]; ok {
@@ -90,26 +88,6 @@ func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 		}
 	}
 
-	log.Debug().Interface("Ans", ans).Msg("Search index successfully filled")
+	log.Debug().Interface("answer", ans).Msg("search index successfully filled")
 	return ans, nil
-}
-
-func UnmarshalFile(filename string) (*Index, error) {
-	log.Debug().Str("Filename", filename)
-
-	var m *Index
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Err(err).Msg("Error while extracting content from file")
-		return nil, err
-	}
-	log.Debug().Str("Content", string(content)).Msg("Content successfully extracted")
-
-	if json.Unmarshal(content, &m) != nil {
-		log.Err(err).Msg("Error while serializing file from JSON")
-		return nil, err
-	}
-	log.Debug().Str("Content", string(content)).Interface("m", m).
-		Msg("JSON successfully serialized into index")
-	return m, nil
 }

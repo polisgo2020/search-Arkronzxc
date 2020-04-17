@@ -19,7 +19,7 @@ import (
 
 // ConcurrentReadFile concurrently read file and returns word array from file
 func ConcurrentReadFile(filename string) (wordArr []string, err error) {
-	log.Debug().Str("Filename", filename)
+	log.Debug().Str("filename", filename)
 	wg := sync.WaitGroup{}
 
 	file, err := os.Open(filename)
@@ -32,12 +32,12 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 	//chunkSize is 1 mb
 	const chunkSize = 1024 * 1024
 	goRoutineCount := int(math.Ceil(float64(util.FileSize(filename)/chunkSize))) + 1
-	log.Debug().Int("GoRoutine count", goRoutineCount)
+	log.Debug().Int("goroutine count", goRoutineCount)
 
 	wordChannel := make(chan string, goRoutineCount)
 
 	ctx, finish := context.WithCancel(context.Background())
-	log.Debug().Interface("Context", ctx)
+	log.Debug().Interface("context", ctx)
 
 	errChannel := make(chan error, goRoutineCount)
 
@@ -87,15 +87,15 @@ ReadLoop:
 			return nil, errData
 		}
 	}
-	log.Debug().Strs("Word array", wordArr)
+	log.Debug().Strs("word array", wordArr)
 	return wordArr, nil
 }
 
 // read writes in the word channel the words
 func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, file *os.File,
 	wordChannel chan<- string, errChan chan<- error) {
-	log.Debug().Interface("Context", ctx).Interface("Wg", wg).Int64("Offset", offset).
-		Int64("Limit", limit).Interface("File", file)
+	log.Debug().Interface("context", ctx).Interface("wg", wg).Int64("offset", offset).
+		Int64("limit", limit).Interface("file", file)
 
 	defer wg.Done()
 
@@ -118,7 +118,7 @@ func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, fi
 			return
 		}
 	}
-	log.Debug().Int64("Offset", offset)
+	log.Debug().Int64("offset", offset)
 
 	// size of read bytes
 	var cumulativeSize int64

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/polisgo2020/search-Arkronzxc/db"
 
 	"github.com/polisgo2020/search-Arkronzxc/config"
 	"github.com/polisgo2020/search-Arkronzxc/web"
@@ -21,7 +22,7 @@ func main() {
 	var err error
 
 	if err = initLogger(config.Load()); err != nil {
-		log.Err(err).Msg("can not init logger")
+		log.Err(err).Msg("can't init logger")
 		return
 	}
 
@@ -80,7 +81,7 @@ func main() {
 
 	err = app.Run(os.Args)
 	if err != nil {
-		log.Err(err).Msg("Can't initialize console application")
+		log.Err(err).Msg("can't initialize console application")
 	}
 }
 
@@ -95,43 +96,52 @@ func initLogger(c *config.Config) error {
 }
 
 func build(ctx *cli.Context) error {
+	repo, err := db.NewIndexRepository(config.Load())
+	if err != nil {
+		return err
+	}
 
-	log.Info().Msg("Build option chosen")
+	log.Info().Msg("build option chosen")
 
 	log.Debug().
-		Str("Files to index", ctx.String("sources")).
-		Str("Index file", ctx.String("index")).
-		Msg("Build option")
+		Str("files to index", ctx.String("sources")).
+		Str("index file", ctx.String("index")).
+		Msg("build option")
 
 	if nameSlice, err := readFileNames(ctx.String("sources")); err != nil {
-		log.Err(err).Str("File names", ctx.String("sources")).Msg("Error while reading files")
+		log.Err(err).Str("file names", ctx.String("sources")).Msg("error while reading files")
 		return err
 	} else {
 		invertedIndex, err := index.CreateInvertedIndex(nameSlice)
 		if err != nil {
-			log.Err(err).Interface("Inverted index", invertedIndex).Msg("Error while creating inverted index")
+			log.Err(err).Interface("inverted index", invertedIndex).Msg("error while creating inverted index")
 			return err
 		}
-		if err = createOutputJSON(invertedIndex, ctx.String("index")); err != nil {
-			log.Err(err).Str("Index file", ctx.String("index")).Msg("Error while creating output JSON")
+		err = repo.SaveIndex(*invertedIndex)
+		if err != nil {
+			log.Err(err).Msg("error while saving to database")
 			return err
 		}
 	}
 
-	log.Debug().Msg("Build successfully completed")
+	log.Debug().Msg("build successfully completed")
 	return nil
 }
 
 func search(ctx *cli.Context) error {
-	log.Info().Msg("Starting searching")
+	log.Info().Msg("starting searching")
 
-	_ = web.StartingWeb(ctx.String("index"), ctx.String("port"))
+	err := web.StartingWeb(config.Load())
+	if err != nil {
+		log.Err(err)
+		return err
+	}
 	return nil
 }
 
 // Returns slice of file names from dir
 func readFileNames(root string) ([]string, error) {
-	log.Debug().Str("Root", root)
+	log.Debug().Str("root", root)
 	var files []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -139,28 +149,6 @@ func readFileNames(root string) ([]string, error) {
 		}
 		return nil
 	})
-	log.Debug().Strs("Files", files)
+	log.Debug().Strs("files", files)
 	return files, err
-}
-
-func createOutputJSON(m *index.Index, outputFileName string) error {
-	log.Debug().Interface("index", m).Str("output file name", outputFileName).
-		Msg("Start creating output Json")
-
-	recordFile, err := os.Create(outputFileName)
-	if err != nil {
-		log.Err(err).Msg("Error while recording file")
-		return err
-	}
-	data, err := json.Marshal(m)
-	if err != nil {
-		log.Err(err).Msg("Error when initializing output JSON")
-		return err
-	}
-	log.Debug().Str("JSON data", string(data)).Msg("Data serialized to JSON")
-
-	_, err = recordFile.Write(data)
-
-	log.Debug().Msg("File is read")
-	return err
 }
