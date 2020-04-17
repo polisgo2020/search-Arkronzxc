@@ -2,14 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/polisgo2020/search-Arkronzxc/web"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/polisgo2020/search-Arkronzxc/index"
-	"github.com/polisgo2020/search-Arkronzxc/util"
+
+	//"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -36,6 +40,13 @@ func main() {
 		Usage:   "Search words",
 	}
 
+	portFlag := &cli.StringFlag{
+		Aliases:     []string{"p"},
+		Name:        "port",
+		Usage:       "Network interface",
+		DefaultText: "8080",
+	}
+
 	app.Commands = []*cli.Command{
 		{
 			Name:    "build",
@@ -54,6 +65,7 @@ func main() {
 			Flags: []cli.Flag{
 				indexFileFlag,
 				searchFlag,
+				portFlag,
 			},
 			Action: search,
 		},
@@ -84,36 +96,22 @@ func build(ctx *cli.Context) error {
 }
 
 func search(ctx *cli.Context) error {
-	file, err := unmarshalFile(ctx.String("index"))
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-	rawUserInput := strings.ToLower(ctx.String("search"))
-	parsedUserInput := strings.Split(rawUserInput, ",")
-	cleanedUserInput := make([]string, 0)
-	for i := range parsedUserInput {
-		w, err := util.CleanUserData(parsedUserInput[i])
-		if err != nil {
-			log.Print(err)
-			return nil
-		}
-		if w != "" {
-			parsedUserInput = append(parsedUserInput, w)
-		}
-	}
-	ans, err := index.BuildSearchIndex(cleanedUserInput, file)
-	if err != nil {
-		log.Print(err)
-		return err
-	}
-	for s := range ans {
-		log.Printf("filename: %s, frequency : %d", s, ans[s])
+
+	log.Println("search starting")
+
+	r := chi.NewRouter()
+
+	r.Use(middleware.DefaultLogger)
+
+	r.Get("/", web.SearchHandler(ctx.String("index")))
+
+	if err := http.ListenAndServe(":"+ctx.String("port"), r); err != nil {
+		log.Print("error", err)
 	}
 	return nil
 }
 
-//Returns slice of file names from dir
+// Returns slice of file names from dir
 func readFileNames(root string) ([]string, error) {
 	var files []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -139,19 +137,4 @@ func createOutputJSON(m *index.Index, outputFileName string) error {
 	_, err = recordFile.Write(data)
 
 	return err
-}
-
-func unmarshalFile(filename string) (*index.Index, error) {
-	var m *index.Index
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-
-	if json.Unmarshal(content, &m) != nil {
-		log.Print(err)
-		return nil, err
-	}
-	return m, nil
 }

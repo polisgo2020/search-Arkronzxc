@@ -11,7 +11,7 @@ import (
 
 type Index map[string][]string
 
-// returns map where key is a word in file, value is filename
+// CreateInvertedIndex returns map where key is a word in file, value is filename
 func CreateInvertedIndex(files []string) (*Index, error) {
 	m := make(Index)
 
@@ -40,8 +40,8 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 	return &m, nil
 }
 
-//ConcurrentBuildFileMap concurrently writes words into the word array and iterates over it applying filename as value
-func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapCah chan<- map[string]string) {
+// ConcurrentBuildFileMap concurrently writes words into the word array and iterates over it applying filename as value
+func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- map[string]string) {
 	defer wg.Done()
 
 	m := make(map[string]string)
@@ -53,10 +53,12 @@ func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapCah chan<- m
 	for i := range wordArr {
 		m[wordArr[i]] = filename
 	}
-	mapCah <- m
+	mapChan <- m
 }
 
-func BuildSearchIndex(searchArgs []string, m *Index) (map[string]int, error) {
+// BuildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
+// number of words from the search query that were found in this file
+func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 	ans := make(map[string]int)
 
 	var cleanData []string
