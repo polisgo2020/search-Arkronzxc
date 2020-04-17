@@ -17,7 +17,6 @@ services:
     depends_on:
       - redis
 
-
   search:
     build:
       context: .
@@ -38,14 +37,3 @@ services:
     restart: always
     ports:
       - 6379:6379
-
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    environment:
-      - REDIS_HOSTS=redis:6379
-      - HTTP_USER=root
-      - HTTP_PASSWORD=qwerty
-    ports:
-      - 8081:8081
-    depends_on:
-      - redis
