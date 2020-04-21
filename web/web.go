@@ -23,13 +23,13 @@ type searchResponse struct {
 	WordsEncountered int    `json:"wordsEncountered"`
 }
 
-func SearchHandler(repo *db.IndexRepository) http.HandlerFunc {
+type service struct {
+	idx *index.Index
+}
 
-	log.Info().Msg("handler is complete")
+func (s *service) searchHandler(writer http.ResponseWriter, request *http.Request) {
 
-	return func(writer http.ResponseWriter, request *http.Request) {
-
-		writer.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 
 		log.Info().Str("received", request.FormValue("search")).Msg("got request")
 
@@ -79,11 +79,11 @@ func parseSearchPhrase(request *http.Request) ([]string, error, int) {
 	parsedUserInput := strings.Split(rawUserInput, " ")
 	log.Debug().Strs("parsed user input", parsedUserInput)
 
-	cleanedUserInput := make([]string, 0)
+	cleanedUserInput := make([]string, 0, len(parsedUserInput))
 	for i := range parsedUserInput {
 		w, err := util.CleanUserData(parsedUserInput[i])
 		if err != nil {
-			log.Err(err).Msg("error while cleaning each word in query")
+			err = fmt.Errorf("error while cleaning each word in query: %w", err)
 			return nil, err, http.StatusBadRequest
 		}
 		if w != "" {
@@ -99,7 +99,7 @@ func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchRe
 
 	ans, err := index.BuildSearchIndex(cleanedUserInput)
 	if err != nil {
-		log.Err(err).Msg("error while building search index with cleaned user input")
+		err = fmt.Errorf("error while building search index with cleaned user input: %w", err)
 		return nil, err, http.StatusInternalServerError
 	}
 	log.Debug().Interface("answer", ans)
@@ -110,7 +110,6 @@ func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchRe
 			Filename:         s,
 			WordsEncountered: ans[s],
 		})
-		log.Printf("filename: %s, words encountered : %d", s, ans[s])
 	}
 
 	log.Debug().Interface("search response", resp).Msg("search response created")
@@ -136,7 +135,7 @@ func StartingWeb(c *config.Config) error {
 
 	r := chi.NewRouter()
 	filesDir := http.Dir("./static")
-
+	s := &service{idx: searchIndex}
 	corsPolicy := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -156,18 +155,21 @@ func StartingWeb(c *config.Config) error {
 
 	r.Use(logMiddleware)
 
-	r.Get("/api", SearchHandler(repo))
-	fileServer(r, "/", filesDir)
+	r.Get("/api", s.searchHandler)
+	err := fileServer(r, "/", filesDir)
+	if err != nil {
+		return err
+	}
 
 	if err := http.ListenAndServe(":"+c.Listen, r); err != nil {
-		log.Err(err).Msg("can't start server")
+		return err
 	}
 	return nil
 }
 
-func fileServer(r chi.Router, path string, root http.FileSystem) {
+func fileServer(r chi.Router, path string, root http.FileSystem) error {
 	if strings.ContainsAny(path, "{}*") {
-		panic("fileServer does not permit any URL parameters.")
+		return fmt.Errorf("fileServer does not permit any URL parameters")
 	}
 
 	if path != "/" && path[len(path)-1] != '/' {
@@ -183,4 +185,5 @@ func fileServer(r chi.Router, path string, root http.FileSystem) {
 		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
 		fs.ServeHTTP(w, r)
 	})
+	return nil
 }

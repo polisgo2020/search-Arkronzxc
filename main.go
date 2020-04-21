@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -31,28 +33,17 @@ func main() {
 	app.Usage = "generate index from text files and search over them"
 
 	indexFileFlag := &cli.StringFlag{
-		Aliases: []string{"i"},
-		Name:    "index",
-		Usage:   "Index file",
+		Aliases:  []string{"i"},
+		Name:     "index",
+		Usage:    "Index file",
+		Required: true,
 	}
 
 	sourcesFlag := &cli.StringFlag{
-		Aliases: []string{"s"},
-		Name:    "sources, s",
-		Usage:   "Files to index",
-	}
-
-	searchFlag := &cli.StringFlag{
-		Aliases: []string{"sw"},
-		Name:    "search-word, sw",
-		Usage:   "Search words",
-	}
-
-	portFlag := &cli.StringFlag{
-		Aliases:     []string{"p"},
-		Name:        "port",
-		Usage:       "Network interface",
-		DefaultText: "8888",
+		Aliases:  []string{"s"},
+		Name:     "sources, s",
+		Usage:    "Files to index",
+		Required: true,
 	}
 
 	app.Commands = []*cli.Command{
@@ -72,8 +63,6 @@ func main() {
 			Usage:   "Search over the index",
 			Flags: []cli.Flag{
 				indexFileFlag,
-				searchFlag,
-				portFlag,
 			},
 			Action: search,
 		},
@@ -81,7 +70,7 @@ func main() {
 
 	err = app.Run(os.Args)
 	if err != nil {
-		log.Err(err).Msg("can't initialize console application")
+		log.Err(err)
 	}
 }
 
@@ -109,18 +98,14 @@ func build(ctx *cli.Context) error {
 		Msg("build option")
 
 	if nameSlice, err := readFileNames(ctx.String("sources")); err != nil {
-		log.Err(err).Str("file names", ctx.String("sources")).Msg("error while reading files")
-		return err
+		return fmt.Errorf("error while reading file names: %w", err)
 	} else {
 		invertedIndex, err := index.CreateInvertedIndex(nameSlice)
 		if err != nil {
-			log.Err(err).Interface("inverted index", invertedIndex).Msg("error while creating inverted index")
-			return err
+			return fmt.Errorf("error while creating inverted index: %w", err)
 		}
-		err = repo.SaveIndex(*invertedIndex)
-		if err != nil {
-			log.Err(err).Msg("error while saving to database")
-			return err
+		if err = createOutputJSON(invertedIndex, ctx.String("index")); err != nil {
+			return fmt.Errorf("error while creating output json: %w", err)
 		}
 	}
 

@@ -47,7 +47,7 @@ func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- 
 	log.Debug().Interface("wg", wg).Str("filename", filename)
 	defer wg.Done()
 
-	m := make(map[string]string)
+	m := map[string]string{}
 	wordArr, err := files.ConcurrentReadFile(filename)
 	if err != nil {
 		log.Err(err).Msg("error while reading file concurrently")
