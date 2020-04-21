@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,13 +31,6 @@ func main() {
 	app.Name = "Search index"
 	app.Usage = "generate index from text files and search over them"
 
-	indexFileFlag := &cli.StringFlag{
-		Aliases:  []string{"i"},
-		Name:     "index",
-		Usage:    "Index file",
-		Required: true,
-	}
-
 	sourcesFlag := &cli.StringFlag{
 		Aliases:  []string{"s"},
 		Name:     "sources, s",
@@ -52,7 +44,6 @@ func main() {
 			Aliases: []string{"b"},
 			Usage:   "Build search index",
 			Flags: []cli.Flag{
-				indexFileFlag,
 				sourcesFlag,
 			},
 			Action: build,
@@ -61,10 +52,8 @@ func main() {
 			Name:    "search",
 			Aliases: []string{"s"},
 			Usage:   "Search over the index",
-			Flags: []cli.Flag{
-				indexFileFlag,
-			},
-			Action: search,
+			Flags:   []cli.Flag{},
+			Action:  search,
 		},
 	}
 
@@ -104,7 +93,7 @@ func build(ctx *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("error while creating inverted index: %w", err)
 		}
-		if err = createOutputJSON(invertedIndex, ctx.String("index")); err != nil {
+		if err = repo.SaveIndex(*invertedIndex); err != nil {
 			return fmt.Errorf("error while creating output json: %w", err)
 		}
 	}

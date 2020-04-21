@@ -24,46 +24,45 @@ type searchResponse struct {
 }
 
 type service struct {
-	idx *index.Index
+	repo *db.IndexRepository
 }
 
 func (s *service) searchHandler(writer http.ResponseWriter, request *http.Request) {
 
 	writer.Header().Set("Content-Type", "application/json")
 
-		log.Info().Str("received", request.FormValue("search")).Msg("got request")
+	log.Info().Str("received", request.FormValue("search")).Msg("got request")
 
-		parsedSearchPhrase, err, errCode := parseSearchPhrase(request)
-		if err != nil {
-			log.Err(err).Int("status", errCode).Msg("error while parsing search phrase")
-			http.Error(writer, http.StatusText(errCode), errCode)
-			return
-		}
-		log.Debug().Strs("parse search phrase", parsedSearchPhrase).Msg("search phrase parsed")
+	parsedSearchPhrase, err, errCode := parseSearchPhrase(request)
+	if err != nil {
+		log.Err(err).Int("status", errCode).Msg("error while parsing search phrase")
+		http.Error(writer, http.StatusText(errCode), errCode)
+		return
+	}
+	log.Debug().Strs("parse search phrase", parsedSearchPhrase).Msg("search phrase parsed")
 
-		searchIndex, err := repo.GetIndex(parsedSearchPhrase)
+	searchIndex, err := s.repo.GetIndex(parsedSearchPhrase)
 
-		resp, err, errCode := answerFormation(searchIndex, parsedSearchPhrase)
-		if err != nil {
-			log.Err(err).Int("status", errCode).Msg("error while creating answer")
-			http.Error(writer, http.StatusText(errCode), errCode)
-			return
-		}
-		log.Debug().Interface("response", resp)
+	resp, err, errCode := answerFormation(searchIndex, parsedSearchPhrase)
+	if err != nil {
+		log.Err(err).Int("status", errCode).Msg("error while creating answer")
+		http.Error(writer, http.StatusText(errCode), errCode)
+		return
+	}
+	log.Debug().Interface("response", resp)
 
-		finalJson, err := json.Marshal(resp)
-		if err != nil {
-			log.Err(err).Msg("error while serializing final JSON")
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-		log.Debug().Interface("final json", finalJson)
+	finalJson, err := json.Marshal(resp)
+	if err != nil {
+		log.Err(err).Msg("error while serializing final JSON")
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	log.Debug().Interface("final json", finalJson)
 
-		if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
-			log.Err(err).Msg("error while ")
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+	if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
+		log.Err(err).Msg("error while ")
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -135,7 +134,7 @@ func StartingWeb(c *config.Config) error {
 
 	r := chi.NewRouter()
 	filesDir := http.Dir("./static")
-	s := &service{idx: searchIndex}
+
 	corsPolicy := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -150,13 +149,13 @@ func StartingWeb(c *config.Config) error {
 		log.Err(err).Msg("error while initializing db in search handler")
 		return nil
 	}
-
+	s := &service{repo: repo}
 	r.Use(corsPolicy.Handler)
 
 	r.Use(logMiddleware)
 
 	r.Get("/api", s.searchHandler)
-	err := fileServer(r, "/", filesDir)
+	err = fileServer(r, "/", filesDir)
 	if err != nil {
 		return err
 	}
