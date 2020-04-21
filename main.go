@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -30,28 +31,17 @@ func main() {
 	app.Usage = "generate index from text files and search over them"
 
 	indexFileFlag := &cli.StringFlag{
-		Aliases: []string{"i"},
-		Name:    "index",
-		Usage:   "Index file",
+		Aliases:  []string{"i"},
+		Name:     "index",
+		Usage:    "Index file",
+		Required: true,
 	}
 
 	sourcesFlag := &cli.StringFlag{
-		Aliases: []string{"s"},
-		Name:    "sources, s",
-		Usage:   "Files to index",
-	}
-
-	searchFlag := &cli.StringFlag{
-		Aliases: []string{"sw"},
-		Name:    "search-word, sw",
-		Usage:   "Search words",
-	}
-
-	portFlag := &cli.StringFlag{
-		Aliases:     []string{"p"},
-		Name:        "port",
-		Usage:       "Network interface",
-		DefaultText: "8888",
+		Aliases:  []string{"s"},
+		Name:     "sources, s",
+		Usage:    "Files to index",
+		Required: true,
 	}
 
 	app.Commands = []*cli.Command{
@@ -71,8 +61,6 @@ func main() {
 			Usage:   "Search over the index",
 			Flags: []cli.Flag{
 				indexFileFlag,
-				searchFlag,
-				portFlag,
 			},
 			Action: search,
 		},
@@ -80,7 +68,7 @@ func main() {
 
 	err = app.Run(os.Args)
 	if err != nil {
-		log.Err(err).Msg("Can't initialize console application")
+		log.Err(err)
 	}
 }
 
@@ -104,17 +92,14 @@ func build(ctx *cli.Context) error {
 		Msg("Build option")
 
 	if nameSlice, err := readFileNames(ctx.String("sources")); err != nil {
-		log.Err(err).Str("File names", ctx.String("sources")).Msg("Error while reading files")
-		return err
+		return fmt.Errorf("error while reading file names: %w", err)
 	} else {
 		invertedIndex, err := index.CreateInvertedIndex(nameSlice)
 		if err != nil {
-			log.Err(err).Interface("Inverted index", invertedIndex).Msg("Error while creating inverted index")
-			return err
+			return fmt.Errorf("error while creating inverted index: %w", err)
 		}
 		if err = createOutputJSON(invertedIndex, ctx.String("index")); err != nil {
-			log.Err(err).Str("Index file", ctx.String("index")).Msg("Error while creating output JSON")
-			return err
+			return fmt.Errorf("error while creating output json: %w", err)
 		}
 	}
 
@@ -123,10 +108,23 @@ func build(ctx *cli.Context) error {
 }
 
 func search(ctx *cli.Context) error {
+	c := config.Load()
+
+	input := ctx.String("index")
 	log.Info().Msg("Starting searching")
 
-	_ = web.StartingWeb(ctx.String("index"), ctx.String("port"))
-	return nil
+	log.Debug().Str("Input", input)
+
+	searchIndex, err := index.UnmarshalFile(input)
+	if err != nil {
+		return err
+	}
+	log.Debug().Interface("Index", searchIndex)
+
+	log.Info().Msg("Handler is complete")
+
+	err = web.StartingWeb(searchIndex, c)
+	return err
 }
 
 // Returns slice of file names from dir

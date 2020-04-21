@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/polisgo2020/search-Arkronzxc/config"
+
 	"github.com/go-chi/chi"
 	"github.com/rs/cors"
 
@@ -20,52 +22,44 @@ type searchResponse struct {
 	WordsEncountered int    `json:"wordsEncountered"`
 }
 
-func SearchHandler(input string) http.HandlerFunc {
-	log.Debug().Str("Input", input)
+type service struct {
+	idx *index.Index
+}
 
-	searchIndex, err := index.UnmarshalFile(input)
+func (s *service) searchHandler(writer http.ResponseWriter, request *http.Request) {
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	log.Info().Str("Received", request.FormValue("search")).Msg("Got request")
+
+	parsedSearchPhrase, err, errCode := parseSearchPhrase(request)
 	if err != nil {
-		panic(err)
+		log.Err(err).Int("Status", errCode).Msg("Error while parsing search phrase")
+		http.Error(writer, http.StatusText(errCode), errCode)
+		return
 	}
-	log.Debug().Interface("Index", searchIndex)
+	log.Debug().Strs("Parse search phrase", parsedSearchPhrase).Msg("Search phrase parsed")
 
-	log.Info().Msg("Handler is complete")
+	resp, err, errCode := answerFormation(s.idx, parsedSearchPhrase)
+	if err != nil {
+		log.Err(err).Int("Status", errCode).Msg("Error while creating answer")
+		http.Error(writer, http.StatusText(errCode), errCode)
+		return
+	}
+	log.Debug().Interface("Resp", resp)
 
-	return func(writer http.ResponseWriter, request *http.Request) {
+	finalJson, err := json.Marshal(resp)
+	if err != nil {
+		log.Err(err).Msg("Error while serializing final JSON")
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	log.Debug().Interface("Final json", finalJson)
 
-		writer.Header().Set("Content-Type", "application/json")
-
-		log.Info().Str("Received", request.FormValue("search")).Msg("Got request")
-
-		parsedSearchPhrase, err, errCode := parseSearchPhrase(request)
-		if err != nil {
-			log.Err(err).Int("Status", errCode).Msg("Error while parsing search phrase")
-			http.Error(writer, http.StatusText(errCode), errCode)
-			return
-		}
-		log.Debug().Strs("Parse search phrase", parsedSearchPhrase).Msg("Search phrase parsed")
-
-		resp, err, errCode := answerFormation(searchIndex, parsedSearchPhrase)
-		if err != nil {
-			log.Err(err).Int("Status", errCode).Msg("Error while creating answer")
-			http.Error(writer, http.StatusText(errCode), errCode)
-			return
-		}
-		log.Debug().Interface("Resp", resp)
-
-		finalJson, err := json.Marshal(resp)
-		if err != nil {
-			log.Err(err).Msg("Error while serializing final JSON")
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-		log.Debug().Interface("Final json", finalJson)
-
-		if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
-			log.Err(err).Msg("Error while ")
-			http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+	if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
+		log.Err(err).Msg("Error while writing response")
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -81,11 +75,11 @@ func parseSearchPhrase(request *http.Request) ([]string, error, int) {
 	parsedUserInput := strings.Split(rawUserInput, " ")
 	log.Debug().Strs("Parsed user input", parsedUserInput)
 
-	cleanedUserInput := make([]string, 0)
+	cleanedUserInput := make([]string, 0, len(parsedUserInput))
 	for i := range parsedUserInput {
 		w, err := util.CleanUserData(parsedUserInput[i])
 		if err != nil {
-			log.Err(err).Msg("Error while cleaning each word in query")
+			err = fmt.Errorf("error while cleaning each word in query: %w", err)
 			return nil, err, http.StatusBadRequest
 		}
 		if w != "" {
@@ -101,7 +95,7 @@ func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchRe
 
 	ans, err := index.BuildSearchIndex(cleanedUserInput)
 	if err != nil {
-		log.Err(err).Msg("Error while building search index with cleaned user input")
+		err = fmt.Errorf("error while building search index with cleaned user input: %w", err)
 		return nil, err, http.StatusInternalServerError
 	}
 	log.Debug().Interface("Ans", ans)
@@ -112,7 +106,6 @@ func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchRe
 			Filename:         s,
 			WordsEncountered: ans[s],
 		})
-		log.Printf("filename: %s, words encountered : %d", s, ans[s])
 	}
 
 	log.Debug().Interface("Search response", resp).Msg("Search response created")
@@ -133,12 +126,12 @@ func logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func StartingWeb(index string, port string) error {
+func StartingWeb(searchIndex *index.Index, c *config.Config) error {
 	log.Debug().Msg("Initialize web application")
 
 	r := chi.NewRouter()
 	filesDir := http.Dir("./static")
-
+	s := &service{idx: searchIndex}
 	corsPolicy := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -152,18 +145,21 @@ func StartingWeb(index string, port string) error {
 
 	r.Use(logMiddleware)
 
-	r.Get("/api", SearchHandler(index))
-	fileServer(r, "/", filesDir)
+	r.Get("/api", s.searchHandler)
+	err := fileServer(r, "/", filesDir)
+	if err != nil {
+		return err
+	}
 
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Err(err).Msg("can't start server")
+	if err := http.ListenAndServe(":"+c.Listen, r); err != nil {
+		return err
 	}
 	return nil
 }
 
-func fileServer(r chi.Router, path string, root http.FileSystem) {
+func fileServer(r chi.Router, path string, root http.FileSystem) error {
 	if strings.ContainsAny(path, "{}*") {
-		panic("fileServer does not permit any URL parameters.")
+		return fmt.Errorf("fileServer does not permit any URL parameters")
 	}
 
 	if path != "/" && path[len(path)-1] != '/' {
@@ -179,4 +175,5 @@ func fileServer(r chi.Router, path string, root http.FileSystem) {
 		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
 		fs.ServeHTTP(w, r)
 	})
+	return nil
 }
