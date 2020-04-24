@@ -123,8 +123,7 @@ func search(ctx *cli.Context) error {
 
 	log.Info().Msg("Handler is complete")
 
-	err = web.StartingWeb(searchIndex, c)
-	return err
+	return web.StartingWeb(searchIndex, c)
 }
 
 // Returns slice of file names from dir

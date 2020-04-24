@@ -38,7 +38,6 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 		http.Error(writer, http.StatusText(errCode), errCode)
 		return
 	}
-	log.Debug().Strs("Parse search phrase", parsedSearchPhrase).Msg("Search phrase parsed")
 
 	resp, err, errCode := answerFormation(s.idx, parsedSearchPhrase)
 	if err != nil {
@@ -46,7 +45,6 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 		http.Error(writer, http.StatusText(errCode), errCode)
 		return
 	}
-	log.Debug().Interface("Resp", resp)
 
 	finalJson, err := json.Marshal(resp)
 	if err != nil {
@@ -54,7 +52,11 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	log.Debug().Interface("Final json", finalJson)
+	log.Debug().
+		Strs("Parse search phrase", parsedSearchPhrase).
+		Interface("Resp", resp).
+		Interface("Final json", finalJson).
+		Msg("Search phrase parsed")
 
 	if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
 		log.Err(err).Msg("Error while writing response")
