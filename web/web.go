@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/cors"
+
 	"github.com/polisgo2020/search-Arkronzxc/config"
 
 	"github.com/go-chi/chi"
-	"github.com/rs/cors"
-
 	"github.com/polisgo2020/search-Arkronzxc/index"
 	"github.com/polisgo2020/search-Arkronzxc/util"
 	"github.com/rs/zerolog/log"
@@ -148,29 +148,21 @@ func StartingWeb(searchIndex *index.Index, c *config.Config) error {
 	r.Use(logMiddleware)
 
 	r.Get("/api", s.searchHandler)
-	err := fileServer(r, "/", filesDir)
+	err := fileServer(r, filesDir)
 	if err != nil {
+		log.Err(err)
 		return err
 	}
-
-	if err := http.ListenAndServe(":"+c.Listen, r); err != nil {
+	if err := http.ListenAndServe(c.Listen, r); err != nil {
+		log.Err(err)
 		return err
 	}
 	return nil
 }
 
-func fileServer(r chi.Router, path string, root http.FileSystem) error {
-	if strings.ContainsAny(path, "{}*") {
-		return fmt.Errorf("fileServer does not permit any URL parameters")
-	}
+func fileServer(r chi.Router, root http.FileSystem) error {
 
-	if path != "/" && path[len(path)-1] != '/' {
-		r.Get(path, http.RedirectHandler(path+"/", 301).ServeHTTP)
-		path += "/"
-	}
-	path += "*"
-
-	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Debug().Interface("request", r).Msg("Раздаем статику")
 		rctx := chi.RouteContext(r.Context())
 		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")

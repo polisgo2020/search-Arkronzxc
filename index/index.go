@@ -40,7 +40,7 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 			}
 		}
 	}
-	log.Debug().Interface("Inverted index", m).Msg("Inverted index created")
+	//log.Debug().Interface("Inverted index", m).Msg("Inverted index created")
 	return &m, nil
 }
 
@@ -66,7 +66,7 @@ func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- 
 // buildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
 // number of words from the search query that were found in this file
 func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
-	log.Debug().Interface("Index", m).Strs("Search args", searchArgs)
+	//log.Debug().Interface("Index", m).Strs("Search args", searchArgs)
 
 	ans := make(map[string]int)
 

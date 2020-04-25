@@ -19,7 +19,7 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Listen:   os.Getenv("LISTEN"),
-		LogLevel: os.Getenv("LOGLEVEL"),
+		Listen:   listen,
+		LogLevel: logLevel,
 	}
 }
