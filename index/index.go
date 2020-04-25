@@ -1,8 +1,10 @@
 package index
 
 import (
+
 	"encoding/json"
 	"io/ioutil"
+
 	"sync"
 
 	"github.com/polisgo2020/search-Arkronzxc/util"
@@ -63,10 +65,9 @@ func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- 
 	mapChan <- m
 }
 
-// buildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
+// BuildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
 // number of words from the search query that were found in this file
 func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
-	//log.Debug().Interface("Index", m).Strs("Search args", searchArgs)
 
 	ans := make(map[string]int)
 
@@ -113,3 +114,4 @@ func UnmarshalFile(filename string) (*Index, error) {
 		Msg("JSON successfully serialized into index")
 	return m, nil
 }
+

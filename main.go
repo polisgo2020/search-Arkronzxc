@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+
 	"github.com/polisgo2020/search-Arkronzxc/config"
 	"github.com/polisgo2020/search-Arkronzxc/web"
 
@@ -110,10 +111,13 @@ func build(ctx *cli.Context) error {
 func search(ctx *cli.Context) error {
 	c := config.Load()
 
+
 	input := ctx.String("index")
 	log.Info().Msg("Starting searching")
 
+
 	log.Debug().Str("Input", input)
+
 
 	searchIndex, err := index.UnmarshalFile(input)
 	if err != nil {
@@ -124,6 +128,7 @@ func search(ctx *cli.Context) error {
 	log.Info().Msg("Handler is complete")
 
 	return web.StartingWeb(searchIndex, c)
+
 }
 
 // Returns slice of file names from dir

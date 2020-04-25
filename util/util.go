@@ -32,5 +32,6 @@ func FileSize(path string) int64 {
 	}
 
 	log.Debug().Int64("file size", fi.Size()).Msg("file size calculated")
+
 	return fi.Size()
 }

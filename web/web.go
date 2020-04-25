@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+
 	"net/http"
 	"strings"
 	"time"
@@ -62,10 +63,12 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 		log.Err(err).Msg("Error while writing response")
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
+
 	}
 }
 
 func parseSearchPhrase(request *http.Request) ([]string, error, int) {
+
 	log.Debug().Interface("Request", request)
 
 	searchPhrase := request.FormValue("search")
@@ -82,17 +85,21 @@ func parseSearchPhrase(request *http.Request) ([]string, error, int) {
 		w, err := util.CleanUserData(parsedUserInput[i])
 		if err != nil {
 			err = fmt.Errorf("error while cleaning each word in query: %w", err)
+
 			return nil, err, http.StatusBadRequest
 		}
 		if w != "" {
 			cleanedUserInput = append(cleanedUserInput, w)
 		}
 	}
+
 	log.Debug().Strs("Clean user input: ", cleanedUserInput).Msg("User input parsed")
+
 	return cleanedUserInput, nil, -1
 }
 
 func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchResponse, error, int) {
+
 	log.Debug().Interface("Index", index).Strs("Cleaned user input", cleanedUserInput)
 
 	ans, err := index.BuildSearchIndex(cleanedUserInput)
@@ -102,9 +109,11 @@ func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchRe
 	}
 	log.Debug().Interface("Ans", ans)
 
+
 	var resp []*searchResponse
 	for s := range ans {
 		resp = append(resp, &searchResponse{
+
 			Filename:         s,
 			WordsEncountered: ans[s],
 		})
@@ -170,4 +179,5 @@ func fileServer(r chi.Router, root http.FileSystem) error {
 		fs.ServeHTTP(w, r)
 	})
 	return nil
+
 }
