@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/go-chi/render"
+
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/rs/cors"
 
 	"github.com/polisgo2020/search-Arkronzxc/config"
 
@@ -31,36 +31,36 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 
 	writer.Header().Set("Content-Type", "application/json")
 
-	log.Info().Str("Received", request.FormValue("search")).Msg("Got request")
+	log.Info().Str("received", request.FormValue("search")).Msg("got request")
 
 	parsedSearchPhrase, err, errCode := parseSearchPhrase(request)
 	if err != nil {
-		log.Err(err).Int("Status", errCode).Msg("Error while parsing search phrase")
+		log.Err(err).Int("status", errCode).Msg("error while parsing search phrase")
 		http.Error(writer, http.StatusText(errCode), errCode)
 		return
 	}
 
 	resp, err, errCode := answerFormation(s.idx, parsedSearchPhrase)
 	if err != nil {
-		log.Err(err).Int("Status", errCode).Msg("Error while creating answer")
+		log.Err(err).Int("status", errCode).Msg("error while creating answer")
 		http.Error(writer, http.StatusText(errCode), errCode)
 		return
 	}
 
 	finalJson, err := json.Marshal(resp)
 	if err != nil {
-		log.Err(err).Msg("Error while serializing final JSON")
+		log.Err(err).Msg("error while serializing final JSON")
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	log.Debug().
-		Strs("Parse search phrase", parsedSearchPhrase).
-		Interface("Resp", resp).
-		Interface("Final json", finalJson).
-		Msg("Search phrase parsed")
+		Strs("parse search phrase", parsedSearchPhrase).
+		Interface("resp", resp).
+		Interface("final json", finalJson).
+		Msg("search phrase parsed")
 
 	if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
-		log.Err(err).Msg("Error while writing response")
+		log.Err(err).Msg("error while writing response")
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 
@@ -93,22 +93,21 @@ func parseSearchPhrase(request *http.Request) ([]string, error, int) {
 		}
 	}
 
-	log.Debug().Strs("Clean user input: ", cleanedUserInput).Msg("User input parsed")
+	log.Debug().Strs("clean user input: ", cleanedUserInput).Msg("user input parsed")
 
 	return cleanedUserInput, nil, -1
 }
 
 func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchResponse, error, int) {
 
-	log.Debug().Interface("Index", index).Strs("Cleaned user input", cleanedUserInput)
+	log.Debug().Interface("index", index).Strs("cleaned user input", cleanedUserInput)
 
 	ans, err := index.BuildSearchIndex(cleanedUserInput)
 	if err != nil {
 		err = fmt.Errorf("error while building search index with cleaned user input: %w", err)
 		return nil, err, http.StatusInternalServerError
 	}
-	log.Debug().Interface("Ans", ans)
-
+	log.Debug().Interface("answer", ans).Msg("answer")
 
 	var resp []*searchResponse
 	for s := range ans {
@@ -119,7 +118,7 @@ func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchRe
 		})
 	}
 
-	log.Debug().Interface("Search response", resp).Msg("Search response created")
+	log.Debug().Interface("search response", resp).Msg("search response created")
 	return resp, nil, -1
 }
 
@@ -137,47 +136,25 @@ func logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func StartingWeb(searchIndex *index.Index, c *config.Config) error {
-	log.Debug().Msg("Initialize web application")
-
+func StartingWeb(idx *index.Index, c *config.Config) error {
+	s := &service{
+		idx: idx,
+	}
 	r := chi.NewRouter()
-	filesDir := http.Dir("./static")
-	s := &service{idx: searchIndex}
-	corsPolicy := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300,
+	r.Use(logMiddleware)
+	r.Route("/api", func(r chi.Router) {
+		r.Use(render.SetContentType(render.ContentTypeJSON))
+		r.Get("/", s.searchHandler)
+	})
+	r.Get("/*", func(writer http.ResponseWriter, request *http.Request) {
+		h := http.FileServer(http.Dir("./static"))
+		h.ServeHTTP(writer, request)
 	})
 
-	r.Use(corsPolicy.Handler)
-
-	r.Use(logMiddleware)
-
-	r.Get("/api", s.searchHandler)
-	err := fileServer(r, filesDir)
-	if err != nil {
-		log.Err(err)
-		return err
-	}
 	if err := http.ListenAndServe(c.Listen, r); err != nil {
 		log.Err(err)
 		return err
 	}
+	log.Info().Msgf("started to listen at interface %s", c.Listen)
 	return nil
-}
-
-func fileServer(r chi.Router, root http.FileSystem) error {
-
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Debug().Interface("request", r).Msg("Раздаем статику")
-		rctx := chi.RouteContext(r.Context())
-		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
-		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
-		fs.ServeHTTP(w, r)
-	})
-	return nil
-
 }

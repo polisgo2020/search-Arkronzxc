@@ -2,12 +2,9 @@ package util
 
 import (
 	"strings"
-
-	"github.com/rs/zerolog/log"
 )
 
 func EnglishStopWordChecker(s string) bool {
-	log.Debug().Str("s", s)
 	return english[strings.ToLower(s)]
 }
 

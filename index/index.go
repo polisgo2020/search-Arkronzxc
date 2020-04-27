@@ -1,7 +1,6 @@
 package index
 
 import (
-
 	"encoding/json"
 	"io/ioutil"
 
@@ -17,7 +16,7 @@ type Index map[string][]string
 
 // CreateInvertedIndex returns map where key is a word in file, value is filename
 func CreateInvertedIndex(files []string) (*Index, error) {
-	log.Debug().Strs("Files", files)
+	log.Debug().Strs("files", files).Msg("files to index: ")
 	m := make(Index)
 
 	wg := sync.WaitGroup{}
@@ -42,26 +41,23 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 			}
 		}
 	}
-	//log.Debug().Interface("Inverted index", m).Msg("Inverted index created")
+	log.Debug().Msg("inverted index created")
 	return &m, nil
 }
 
 // ConcurrentBuildFileMap concurrently writes words into the word array and iterates over it applying filename as value
 func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- map[string]string) {
-	log.Debug().Interface("Wg", wg).Str("Filename", filename)
 	defer wg.Done()
 
 	m := map[string]string{}
 	wordArr, err := files.ConcurrentReadFile(filename)
 	if err != nil {
-		log.Err(err).Msg("Error while reading file concurrently")
+		log.Err(err).Msg("error while reading file concurrently")
 		return
 	}
-	log.Debug().Strs("Word array", wordArr)
 	for i := range wordArr {
 		m[wordArr[i]] = filename
 	}
-	log.Debug().Interface("Map", m)
 	mapChan <- m
 }
 
@@ -81,7 +77,6 @@ func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 			cleanData = append(cleanData, w)
 		}
 	}
-	log.Debug().Strs("Clean data", cleanData)
 
 	for _, v := range cleanData {
 		if filesArray, ok := (*m)[v]; ok {
@@ -91,27 +86,22 @@ func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 		}
 	}
 
-	log.Debug().Interface("Ans", ans).Msg("Search index successfully filled")
 	return ans, nil
 }
 
 func UnmarshalFile(filename string) (*Index, error) {
-	log.Debug().Str("Filename", filename)
+	log.Debug().Str("filename", filename)
 
 	var m *Index
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Err(err).Msg("Error while extracting content from file")
+		log.Err(err).Msg("error while extracting content from file")
 		return nil, err
 	}
-	log.Debug().Str("Content", string(content)).Msg("Content successfully extracted")
 
 	if json.Unmarshal(content, &m) != nil {
-		log.Err(err).Msg("Error while serializing file from JSON")
+		log.Err(err).Msg("error while serializing file from JSON")
 		return nil, err
 	}
-	log.Debug().Str("Content", string(content)).Interface("m", m).
-		Msg("JSON successfully serialized into index")
 	return m, nil
 }
-

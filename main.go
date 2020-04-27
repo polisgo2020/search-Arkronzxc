@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-
 	"github.com/polisgo2020/search-Arkronzxc/config"
 	"github.com/polisgo2020/search-Arkronzxc/web"
 
@@ -88,9 +87,9 @@ func build(ctx *cli.Context) error {
 	log.Info().Msg("Build option chosen")
 
 	log.Debug().
-		Str("Files to index", ctx.String("sources")).
-		Str("Index file", ctx.String("index")).
-		Msg("Build option")
+		Str("files to index in dir", ctx.String("sources")).
+		Str("output file with index", ctx.String("index")).
+		Msg("build option")
 
 	if nameSlice, err := readFileNames(ctx.String("sources")); err != nil {
 		return fmt.Errorf("error while reading file names: %w", err)
@@ -104,28 +103,25 @@ func build(ctx *cli.Context) error {
 		}
 	}
 
-	log.Debug().Msg("Build successfully completed")
+	log.Debug().Msg("build successfully completed")
 	return nil
 }
 
 func search(ctx *cli.Context) error {
 	c := config.Load()
 
-
 	input := ctx.String("index")
-	log.Info().Msg("Starting searching")
+	log.Info().Msg("starting searching")
 
-
-	log.Debug().Str("Input", input)
-
+	log.Debug().Str("input", input)
 
 	searchIndex, err := index.UnmarshalFile(input)
 	if err != nil {
 		return err
 	}
-	log.Debug().Interface("Index", searchIndex)
+	log.Debug().Interface("index", searchIndex)
 
-	log.Info().Msg("Handler is complete")
+	log.Info().Msg("handler is complete")
 
 	return web.StartingWeb(searchIndex, c)
 
@@ -133,7 +129,6 @@ func search(ctx *cli.Context) error {
 
 // Returns slice of file names from dir
 func readFileNames(root string) ([]string, error) {
-	log.Debug().Str("Root", root)
 	var files []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -141,14 +136,10 @@ func readFileNames(root string) ([]string, error) {
 		}
 		return nil
 	})
-	log.Debug().Strs("Files", files)
 	return files, err
 }
 
 func createOutputJSON(m *index.Index, outputFileName string) error {
-	log.Debug().Interface("index", m).Str("output file name", outputFileName).
-		Msg("Start creating output Json")
-
 	recordFile, err := os.Create(outputFileName)
 	if err != nil {
 		log.Err(err).Msg("Error while recording file")
@@ -159,7 +150,6 @@ func createOutputJSON(m *index.Index, outputFileName string) error {
 		log.Err(err).Msg("Error when initializing output JSON")
 		return err
 	}
-	log.Debug().Str("JSON data", string(data)).Msg("Data serialized to JSON")
 
 	_, err = recordFile.Write(data)
 

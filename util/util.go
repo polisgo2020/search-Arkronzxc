@@ -9,15 +9,12 @@ import (
 
 // CleanUserData receives a processing word and after processing applies function operation for processed word
 func CleanUserData(word string) (string, error) {
-	log.Debug().Str("word", word)
-
 	if !EnglishStopWordChecker(word) && len(word) > 0 {
 		stemmedWord, err := snowball.Stem(word, "english", false)
 		if err != nil {
 			log.Err(err).Msg("Error while stemming the word")
 			return "", err
 		}
-		log.Debug().Str("stemmed word", stemmedWord)
 		return stemmedWord, nil
 	}
 	return "", nil
