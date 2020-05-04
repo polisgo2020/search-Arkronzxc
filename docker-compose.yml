@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile-build
+    environment:
+      - LOGLEVEL=debug
+      - LISTEN=8888
+      - DB_LISTEN=redis:6379
+    volumes:
+      - ./data:/data
+    ports:
+      - 9000:8888
+    depends_on:
+      - redis
+
+  search:
+    build:
+      context: .
+      dockerfile: Dockerfile-search
+    environment:
+      - LOGLEVEL=debug
+      - LISTEN=8888
+      - DB_LISTEN=redis:6379
+    volumes:
+      - ./static:/app/static
+    ports:
+      - 8888:8888
+    depends_on:
+      - builder
+
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - 6379:6379

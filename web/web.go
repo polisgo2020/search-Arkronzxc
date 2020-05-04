@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/polisgo2020/search-Arkronzxc/config"
+	"github.com/polisgo2020/search-Arkronzxc/db"
 
 	"github.com/go-chi/chi"
 	"github.com/polisgo2020/search-Arkronzxc/index"
@@ -24,7 +25,7 @@ type searchResponse struct {
 }
 
 type service struct {
-	idx *index.Index
+	repo *db.IndexRepository
 }
 
 func (s *service) searchHandler(writer http.ResponseWriter, request *http.Request) {
@@ -40,12 +41,16 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	resp, err, errCode := answerFormation(s.idx, parsedSearchPhrase)
+
+	searchIndex, err := s.repo.GetIndex(parsedSearchPhrase)
+
+	resp, err, errCode := answerFormation(searchIndex, parsedSearchPhrase)
 	if err != nil {
 		log.Err(err).Int("status", errCode).Msg("error while creating answer")
 		http.Error(writer, http.StatusText(errCode), errCode)
 		return
 	}
+
 
 	finalJson, err := json.Marshal(resp)
 	if err != nil {
@@ -53,6 +58,7 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+
 	log.Debug().
 		Strs("parse search phrase", parsedSearchPhrase).
 		Interface("resp", resp).
@@ -61,6 +67,7 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 
 	if _, err := fmt.Fprint(writer, string(finalJson)); err != nil {
 		log.Err(err).Msg("error while writing response")
+
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 
@@ -69,16 +76,16 @@ func (s *service) searchHandler(writer http.ResponseWriter, request *http.Reques
 
 func parseSearchPhrase(request *http.Request) ([]string, error, int) {
 
-	log.Debug().Interface("Request", request)
+	log.Debug().Interface("request", request)
 
 	searchPhrase := request.FormValue("search")
-	log.Debug().Str("Search phrase", searchPhrase)
+	log.Debug().Str("search phrase", searchPhrase)
 
 	rawUserInput := strings.ToLower(searchPhrase)
-	log.Debug().Str("Raw user input", rawUserInput)
+	log.Debug().Str("raw user input", rawUserInput)
 
 	parsedUserInput := strings.Split(rawUserInput, " ")
-	log.Debug().Strs("Parsed user input", parsedUserInput)
+	log.Debug().Strs("parsed user input", parsedUserInput)
 
 	cleanedUserInput := make([]string, 0, len(parsedUserInput))
 	for i := range parsedUserInput {
@@ -107,7 +114,9 @@ func answerFormation(index *index.Index, cleanedUserInput []string) ([]*searchRe
 		err = fmt.Errorf("error while building search index with cleaned user input: %w", err)
 		return nil, err, http.StatusInternalServerError
 	}
+
 	log.Debug().Interface("answer", ans).Msg("answer")
+
 
 	var resp []*searchResponse
 	for s := range ans {
@@ -136,11 +145,13 @@ func logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+
 func StartingWeb(idx *index.Index, c *config.Config) error {
 	s := &service{
 		idx: idx,
 	}
 	r := chi.NewRouter()
+
 	r.Use(logMiddleware)
 	r.Route("/api", func(r chi.Router) {
 		r.Use(render.SetContentType(render.ContentTypeJSON))
@@ -151,10 +162,12 @@ func StartingWeb(idx *index.Index, c *config.Config) error {
 		h.ServeHTTP(writer, request)
 	})
 
+
 	if err := http.ListenAndServe(c.Listen, r); err != nil {
 		log.Err(err)
 		return err
 	}
 	log.Info().Msgf("started to listen at interface %s", c.Listen)
+
 	return nil
 }

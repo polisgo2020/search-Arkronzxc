@@ -1,8 +1,6 @@
 package index
 
 import (
-	"encoding/json"
-	"io/ioutil"
 
 	"sync"
 
@@ -16,7 +14,9 @@ type Index map[string][]string
 
 // CreateInvertedIndex returns map where key is a word in file, value is filename
 func CreateInvertedIndex(files []string) (*Index, error) {
+
 	log.Debug().Strs("files", files).Msg("files to index: ")
+
 	m := make(Index)
 
 	wg := sync.WaitGroup{}
@@ -41,12 +41,15 @@ func CreateInvertedIndex(files []string) (*Index, error) {
 			}
 		}
 	}
+
 	log.Debug().Msg("inverted index created")
+
 	return &m, nil
 }
 
 // ConcurrentBuildFileMap concurrently writes words into the word array and iterates over it applying filename as value
 func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- map[string]string) {
+
 	defer wg.Done()
 
 	m := map[string]string{}
@@ -55,15 +58,18 @@ func ConcurrentBuildFileMap(wg *sync.WaitGroup, filename string, mapChan chan<- 
 		log.Err(err).Msg("error while reading file concurrently")
 		return
 	}
+
 	for i := range wordArr {
 		m[wordArr[i]] = filename
 	}
+
 	mapChan <- m
 }
 
 // BuildSearchIndex searches by index and returns the structure where the key is the file name, and the value is the
 // number of words from the search query that were found in this file
 func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
+
 
 	ans := make(map[string]int)
 
@@ -78,6 +84,7 @@ func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 		}
 	}
 
+
 	for _, v := range cleanData {
 		if filesArray, ok := (*m)[v]; ok {
 			for _, fileName := range filesArray {
@@ -89,19 +96,3 @@ func (m *Index) BuildSearchIndex(searchArgs []string) (map[string]int, error) {
 	return ans, nil
 }
 
-func UnmarshalFile(filename string) (*Index, error) {
-	log.Debug().Str("filename", filename)
-
-	var m *Index
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Err(err).Msg("error while extracting content from file")
-		return nil, err
-	}
-
-	if json.Unmarshal(content, &m) != nil {
-		log.Err(err).Msg("error while serializing file from JSON")
-		return nil, err
-	}
-	return m, nil
-}

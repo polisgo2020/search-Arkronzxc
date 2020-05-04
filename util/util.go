@@ -12,7 +12,7 @@ func CleanUserData(word string) (string, error) {
 	if !EnglishStopWordChecker(word) && len(word) > 0 {
 		stemmedWord, err := snowball.Stem(word, "english", false)
 		if err != nil {
-			log.Err(err).Msg("Error while stemming the word")
+			log.Err(err).Msg("error while stemming the word")
 			return "", err
 		}
 		return stemmedWord, nil
@@ -25,7 +25,7 @@ func FileSize(path string) int64 {
 
 	fi, err := os.Stat(path)
 	if err != nil {
-		log.Fatal().Msg("Error while calculating file size")
+		log.Fatal().Msg("error while calculating file size")
 	}
 
 	log.Debug().Int64("file size", fi.Size()).Msg("file size calculated")

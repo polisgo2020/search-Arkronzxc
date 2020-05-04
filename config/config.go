@@ -3,13 +3,17 @@ package config
 import "os"
 
 type Config struct {
+	DbListen string
 	Listen   string
 	LogLevel string
 }
 
 func Load() *Config {
-	var listen, logLevel string
+	var dbListen, listen, logLevel string
 
+	if dbListen = os.Getenv("DB_LISTEN"); listen == "" {
+		dbListen = "redis:6379"
+	}
 	if listen = os.Getenv("LISTEN"); listen == "" {
 		listen = "localhost:8888"
 	}
@@ -19,6 +23,7 @@ func Load() *Config {
 	}
 
 	return &Config{
+		DbListen: dbListen,
 		Listen:   listen,
 		LogLevel: logLevel,
 	}

@@ -19,6 +19,7 @@ import (
 
 // ConcurrentReadFile concurrently read file and returns word array from file
 func ConcurrentReadFile(filename string) (wordArr []string, err error) {
+
 	wg := sync.WaitGroup{}
 
 	file, err := os.Open(filename)
@@ -31,6 +32,7 @@ func ConcurrentReadFile(filename string) (wordArr []string, err error) {
 	//chunkSize is 1 mb
 	const chunkSize = 1024 * 1024
 	goRoutineCount := int(math.Ceil(float64(util.FileSize(filename)/chunkSize))) + 1
+
 
 	wordChannel := make(chan string, goRoutineCount)
 
@@ -83,12 +85,14 @@ ReadLoop:
 			return nil, errData
 		}
 	}
+
 	return wordArr, nil
 }
 
 // read writes in the word channel the words
 func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, file *os.File,
 	wordChannel chan<- string, errChan chan<- error) {
+
 
 	defer wg.Done()
 
@@ -111,6 +115,7 @@ func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, fi
 			return
 		}
 	}
+
 
 	// size of read bytes
 	var cumulativeSize int64
