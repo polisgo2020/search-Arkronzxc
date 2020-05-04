@@ -12,6 +12,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/polisgo2020/search-Arkronzxc/util"
 )
 
@@ -104,6 +106,7 @@ func read(ctx context.Context, wg *sync.WaitGroup, offset int64, limit int64, fi
 		}
 
 		if err != nil {
+			log.Err(err)
 			errChan <- err
 			return
 		}

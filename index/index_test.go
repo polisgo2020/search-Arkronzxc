@@ -50,14 +50,14 @@ func (f *searchTestSuite) SetupTest() {
 }
 
 func (f *searchTestSuite) TestBuildSearchIndex() {
-	actual, err := f.index.buildSearchIndex(f.firstSearchQuery)
+	actual, err := f.index.BuildSearchIndex(f.firstSearchQuery)
 	require.NoError(f.T(), err)
 	require.Equal(f.T(), f.firstExpectedCase, actual)
 }
 
 func (f *searchTestSuite) TestBuildSearchIndex2() {
 	f.secondSearchQuery = append(f.secondSearchQuery, "architecture")
-	actual, err := f.index.buildSearchIndex(f.secondSearchQuery)
+	actual, err := f.index.BuildSearchIndex(f.secondSearchQuery)
 	require.NoError(f.T(), err)
 	f.secondExpectedCase["file1"] = 2
 	require.Equal(f.T(), f.secondExpectedCase, actual)

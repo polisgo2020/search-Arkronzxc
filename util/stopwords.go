@@ -1,6 +1,8 @@
 package util
 
-import "strings"
+import (
+	"strings"
+)
 
 func EnglishStopWordChecker(s string) bool {
 	return english[strings.ToLower(s)]
