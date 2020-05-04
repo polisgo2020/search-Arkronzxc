@@ -82,8 +82,10 @@ func build(ctx *cli.Context) error {
 	log.Info().Msg("build option chosen")
 
 	log.Debug().
-		Str("files to index", ctx.String("sources")).
-		Str("index file", ctx.String("index")).
+
+		Str("files to index in dir", ctx.String("sources")).
+		Str("output file with index", ctx.String("index")).
+
 		Msg("build option")
 
 	if nameSlice, err := readFileNames(ctx.String("sources")); err != nil {
@@ -103,19 +105,32 @@ func build(ctx *cli.Context) error {
 }
 
 func search(ctx *cli.Context) error {
+
+	c := config.Load()
+
+	input := ctx.String("index")
 	log.Info().Msg("starting searching")
 
-	err := web.StartingWeb(config.Load())
+	log.Debug().Str("input", input)
+
+	searchIndex, err := index.UnmarshalFile(input)
+
 	if err != nil {
 		log.Err(err)
 		return err
 	}
-	return nil
+
+	log.Debug().Interface("index", searchIndex)
+
+	log.Info().Msg("handler is complete")
+
+	return web.StartingWeb(searchIndex, c)
+
 }
 
 // Returns slice of file names from dir
 func readFileNames(root string) ([]string, error) {
-	log.Debug().Str("root", root)
+
 	var files []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
@@ -123,6 +138,9 @@ func readFileNames(root string) ([]string, error) {
 		}
 		return nil
 	})
+
 	log.Debug().Strs("files", files)
 	return files, err
 }
+
+
